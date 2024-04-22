@@ -1,8 +1,6 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Diagnostics;
 using System.Linq;
-using System.Text;
 
 namespace CRUD_Generator
 {
@@ -21,24 +19,26 @@ namespace CRUD_Generator
             """;
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
-          
+
             context.RegisterPostInitializationOutput(ctx =>
             {
-            ctx.AddSource("GenerateCRUDAttribute.g.cs", GenerateCRUDAttribute);
+                ctx.AddSource("GenerateCRUDAttribute.g.cs", GenerateCRUDAttribute);
             });
-            if (Debugger.IsAttached) Debugger.Launch();
+
             var classesMarkedWithTheGeneratorAttribute = context.SyntaxProvider.ForAttributeWithMetadataName(
                 "CRUD_Generator.GenerateCRUDAttribute",
-                (node,_) => node is ClassDeclarationSyntax,
-                (ctx,_) => (ClassDeclarationSyntax)ctx.TargetNode
+                (node, _) => node is ClassDeclarationSyntax,
+                (ctx, _) => (ClassDeclarationSyntax)ctx.TargetNode
                 );
             context.RegisterSourceOutput(classesMarkedWithTheGeneratorAttribute.Combine(context.CompilationProvider), (ctx, classesAndCompilation) =>
             {
-                var compilation = classesAndCompilation.Item2;
                 var @class = classesAndCompilation.Item1;
+                var compilation = classesAndCompilation.Item2;
                 var model = compilation.GetSemanticModel(@class.SyntaxTree);
                 var classSymbol = model.GetDeclaredSymbol(@class);
                 var className = classSymbol!.Name;
+                // or className = @class.Identifier.Text if you don't want to use the semantic model API
+
                 // check if class has a property named "Id" of type Guid
                 var check = @class.Members.OfType<PropertyDeclarationSyntax>().Any(p => p.Identifier.Text == "Id" && model.GetTypeInfo(p.Type).Type?.Name == "Guid" && p.Modifiers.Any(m => m.Text == "public"));
                 if (!check)
@@ -48,15 +48,9 @@ namespace CRUD_Generator
                     ctx.ReportDiagnostic(diagnostic);
                     return;
                 }
-                // return a tuple of the properties that have a get and set accessor and their type
-                var properties = @class.Members.OfType<PropertyDeclarationSyntax>()
-                .Where(p => p.Modifiers.Any(m => m.Text == "public") &&  p.AccessorList?.Accessors
-                .Any(a => a.Keyword.Text == "get") == true && p.AccessorList?.Accessors.Any(a => a.Keyword.Text == "set") == true)
-                .Select(p => (p.Identifier.Text, model.GetTypeInfo(p.Type).Type?.Name));
-                var sourceBuilder = new StringBuilder();
-                sourceBuilder.Append($$"""
-                namespace CRUD_Generator{
-
+                var generatedCode = $$"""
+                namespace CRUD_Generator
+                {
                     public class {{className}}Service {
                         public Guid Id { get; set;}
                         private static List<{{className}}> _data = new List<{{className}}>();
@@ -67,13 +61,9 @@ namespace CRUD_Generator
                         public void Delete(Guid id) => _data.Remove(_data.FirstOrDefault(d => d.Id == id));   
                     }    
                 }       
-                """);
-               ctx.AddSource($"{className}Service.g.cs", sourceBuilder.ToString());
-                //context.RegisterPostInitializationOutput(ctx =>
-                //{
-                //    ctx.AddSource($"{className}Service.g.cs", sourceBuilder.ToString());
-                //});
-            }); 
+                """;
+                ctx.AddSource($"{className}Service.g.cs", generatedCode);
+            });
         }
     }
 }

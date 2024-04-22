@@ -2,7 +2,7 @@
   "profiles": {
     "Profile 1": {
       "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\CRUD-Generation-Service\\CRUD-Generation-Project.csproj"
+      "targetProject": "..\\CRUD-Generation-Project\\CRUD-Generation-Project.csproj"
     }
   }
 }

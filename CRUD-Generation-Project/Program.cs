@@ -1,8 +1,6 @@
 ﻿using CRUD_Generator;
 
-var Id = Guid.NewGuid();
-
-
+var p = "Sam";
 [GenerateCRUD]
 public class Person
 {
